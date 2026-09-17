@@ -26,8 +26,9 @@ When we reach the impression endpoint, propose options with trade-offs, includin
 - The same applies to other writes that depend on the current row: resuming a campaign and decreasing its budget.
 - Money is an integer: BIGINT in the database, int64 in Go, integer in JSON. Never float.
 - Database constraints are the safety net: budget > 0, spent >= 0, spent <= budget, end_date > start_date, status limited to the three values.
-- Soft delete only. Deleting sets deleted_at. Every query filters deleted_at IS NULL. No DELETE statements.
+- soft delete only. Deleting sets deleted_at. Every query filters deleted_at IS NULL. No DELETE statements.
 Remaining budget is computed (budget - spent), never stored.
+- every UPDATE sets updated_at = now(). Postgres does not do this automatically.
 
 ## Domain
 
