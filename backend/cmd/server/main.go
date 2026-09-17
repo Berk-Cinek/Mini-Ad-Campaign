@@ -16,6 +16,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/pressly/goose/v3"
 
+	"github.com/Berk-Cinek/Mini-Ad-Campaign/backend/internal/campaign"
 	"github.com/Berk-Cinek/Mini-Ad-Campaign/backend/migrations"
 )
 
@@ -49,9 +50,18 @@ func run() error {
 	}
 	defer pool.Close()
 
+	repo := campaign.NewRepository(pool)
+	svc := campaign.NewService(repo)
+	h := campaign.NewHandler(svc)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /campaigns", h.Create)
+	mux.HandleFunc("GET /campaigns", h.List)
+	mux.HandleFunc("GET /campaigns/{id}", h.Get)
+
 	server := &http.Server{
 		Addr:    ":" + port,
-		Handler: http.NewServeMux(),
+		Handler: mux,
 	}
 
 	errCh := make(chan error, 1)
