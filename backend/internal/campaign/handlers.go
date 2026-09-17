@@ -56,3 +56,40 @@ func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 	httpx.WriteJSON(w, http.StatusOK, c)
 }
+
+func (h *Handler) Update(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		httpx.WriteError(w, httpx.Invalid("invalid campaign id"))
+		return
+	}
+
+	var in UpdateInput
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&in); err != nil {
+		httpx.WriteError(w, httpx.Invalid("invalid request body"))
+		return
+	}
+
+	c, err := h.svc.Update(r.Context(), id, in)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, c)
+}
+
+func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		httpx.WriteError(w, httpx.Invalid("invalid campaign id"))
+		return
+	}
+
+	if err := h.svc.Delete(r.Context(), id); err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}

@@ -5,6 +5,12 @@ import (
 	"time"
 )
 
+const (
+	StatusActive    = "active"
+	StatusPaused    = "paused"
+	StatusCompleted = "completed"
+)
+
 type Campaign struct {
 	ID        int64     `json:"id"`
 	Title     string    `json:"title"`
@@ -44,4 +50,13 @@ type CreateInput struct {
 	Budget    json.Number `json:"budget"`
 	StartDate time.Time   `json:"start_date"`
 	EndDate   time.Time   `json:"end_date"`
+}
+
+// UpdateInput uses pointers so "field absent" (nil) is distinguishable from
+// "field sent" — required for PATCH's partial-update semantics.
+type UpdateInput struct {
+	Title     *string      `json:"title"`
+	Budget    *json.Number `json:"budget"`
+	StartDate *time.Time   `json:"start_date"`
+	EndDate   *time.Time   `json:"end_date"`
 }
