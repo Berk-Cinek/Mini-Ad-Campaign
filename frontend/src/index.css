@@ -35,12 +35,3 @@ body {
   margin: 0 auto;
   padding: 24px;
 }
-
-td, th { text-align: left; }
-.title-cell {
-  max-width: 320px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-table { table-layout: fixed; width: 100%; }

@@ -22,6 +22,7 @@
 
 .campaigns-table {
   width: 100%;
+  table-layout: fixed;
   border-collapse: collapse;
 }
 
@@ -35,4 +36,22 @@
 .campaigns-table th {
   color: var(--text-muted);
   font-weight: 500;
+}
+
+.campaigns-table th:nth-child(1) {
+  width: 40%;
+}
+
+.campaigns-table th:nth-child(2),
+.campaigns-table th:nth-child(3),
+.campaigns-table th:nth-child(4),
+.campaigns-table th:nth-child(5) {
+  width: 15%;
+}
+
+.title-cell {
+  max-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }

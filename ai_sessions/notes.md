@@ -72,3 +72,17 @@ Option A — Single atomic conditional UPDATE
     Frontend Scafolding:
 
     - tried to use vite_api_base_url instead of a proxy as defined int he CLAUDE.md file, since it was ngix my guess is it thought the proxy was for prod only and defaulted to base url approach
+
+    - reccomended a got fix for client.ts;
+     The campaign list page (CampaignsPage.tsx) is real and working; there's no way to create a campaign from the UI yet (they were seeded via curl during
+ testing). This adds a /campaigns/new route with a form (title, budget, start date, end date) that POSTs via a TanStack Query useMutation, using
+ .isPending/.error for UI state and invalidating the ['campaigns'] query key on success so the list picks up the new row automatically.
+
+ Two corrections to fold in before writing the form, both caught during review:
+
+ 1. src/api/client.ts's request() doesn't stringify a body for you. Today it just spreads init straight into fetch(), so a caller passing a plain object as
+    body would send "[object Object]" — the caller would have to remember to JSON.stringify() it themselves at every call site, and get the Content-Type
+    header right by hand. Fixing this once in the client (rather than in the new form) means every future POST/PATCH gets it for free.
+ 2. An empty datetime-local input yields "", and new Date("").toISOString() throws ("Invalid time value") rather than producing a usable date. required on
+    the input is the primary guard (native constraint validation blocks the submit event before our handler runs), but since this exact failure mode was
+    flagged, the submit handler also gets a defensive early-return as a second line of defense.

@@ -10,10 +10,14 @@ export class ApiError extends Error {
   }
 }
 
-export async function request<T>(path: string, init?: RequestInit): Promise<T> {
+type RequestOptions = Omit<RequestInit, 'body'> & { body?: unknown };
+
+export async function request<T>(path: string, options?: RequestOptions): Promise<T> {
+  const { body, ...rest } = options ?? {};
   const res = await fetch(path, {
     headers: { 'Content-Type': 'application/json' },
-    ...init,
+    ...rest,
+    body: body !== undefined ? JSON.stringify(body) : undefined,
   });
 
   if (!res.ok) {

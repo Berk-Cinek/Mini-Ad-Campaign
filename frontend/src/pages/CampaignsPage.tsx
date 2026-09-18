@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { Link } from 'react-router';
 
 import { request } from '../api/client';
 import { displayStatus } from '../lib/status';
@@ -31,6 +32,10 @@ export default function CampaignsPage() {
     <div>
       <h1>Campaigns</h1>
 
+      <p>
+        <Link to="/campaigns/new">New Campaign</Link>
+      </p>
+
       <div className="tabs" role="tablist">
         {TABS.map((t) => (
           <button
@@ -59,7 +64,7 @@ export default function CampaignsPage() {
         <tbody>
           {visible.map((campaign) => (
             <tr key={campaign.id}>
-              <td>{campaign.title}</td>
+              <td className="title-cell" title={campaign.title}>{campaign.title}</td>
               <td>{campaign.budget.toLocaleString()}</td>
               <td>{campaign.spent.toLocaleString()}</td>
               <td>{campaign.remaining.toLocaleString()}</td>
