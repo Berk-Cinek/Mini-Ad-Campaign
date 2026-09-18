@@ -139,6 +139,73 @@ func (r *Repository) SoftDelete(ctx context.Context, id int64) error {
 	return r.pool.QueryRow(ctx, query, id).Scan(&returnedID)
 }
 
+// Pause is the same conditional-UPDATE idiom as Update/Deduct: the WHERE
+// clause is the sole enforcement mechanism, so zero matching rows surfaces
+// as pgx.ErrNoRows and gets disambiguated by classifyUpdateConflict.
+func (r *Repository) Pause(ctx context.Context, id int64) (Campaign, error) {
+	query := `
+		UPDATE campaigns
+		SET status = 'paused', updated_at = now()
+		WHERE id = $1 AND deleted_at IS NULL AND status = 'active'
+		RETURNING ` + campaignColumns
+
+	var out Campaign
+	err := r.pool.QueryRow(ctx, query, id).Scan(
+		&out.ID, &out.Title, &out.Budget, &out.Spent, &out.Status,
+		&out.StartDate, &out.EndDate, &out.CreatedAt, &out.UpdatedAt,
+	)
+	if err != nil {
+		return Campaign{}, err
+	}
+	return out, nil
+}
+
+// Resume: spent < budget and end_date > now() are evaluated by Postgres
+// atomically against the current row as part of this one statement, so a
+// concurrent impression exhausting the budget at the same instant can't
+// race past this check — whichever statement runs first wins, and the other
+// correctly sees the post-write state.
+func (r *Repository) Resume(ctx context.Context, id int64) (Campaign, error) {
+	query := `
+		UPDATE campaigns
+		SET status = 'active', updated_at = now()
+		WHERE id = $1
+			AND deleted_at IS NULL
+			AND status = 'paused'
+			AND spent < budget
+			AND end_date > now()
+		RETURNING ` + campaignColumns
+
+	var out Campaign
+	err := r.pool.QueryRow(ctx, query, id).Scan(
+		&out.ID, &out.Title, &out.Budget, &out.Spent, &out.Status,
+		&out.StartDate, &out.EndDate, &out.CreatedAt, &out.UpdatedAt,
+	)
+	if err != nil {
+		return Campaign{}, err
+	}
+	return out, nil
+}
+
+// End works from either 'active' or 'paused' — only 'completed' blocks it.
+func (r *Repository) End(ctx context.Context, id int64) (Campaign, error) {
+	query := `
+		UPDATE campaigns
+		SET status = 'completed', updated_at = now()
+		WHERE id = $1 AND deleted_at IS NULL AND status <> 'completed'
+		RETURNING ` + campaignColumns
+
+	var out Campaign
+	err := r.pool.QueryRow(ctx, query, id).Scan(
+		&out.ID, &out.Title, &out.Budget, &out.Spent, &out.Status,
+		&out.StartDate, &out.EndDate, &out.CreatedAt, &out.UpdatedAt,
+	)
+	if err != nil {
+		return Campaign{}, err
+	}
+	return out, nil
+}
+
 // Deduct atomically records one impression: increments spent by 1 and, if
 // this deduction exhausts the budget, flips status to 'paused' in the same
 // statement — no separate transition step, so no window where a concurrent

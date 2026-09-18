@@ -60,3 +60,24 @@ type UpdateInput struct {
 	StartDate *time.Time   `json:"start_date"`
 	EndDate   *time.Time   `json:"end_date"`
 }
+
+// Stats is the smaller /stats/{id} shape (no title/dates/timestamps).
+type Stats struct {
+	Impressions int64  `json:"impressions"`
+	Spent       int64  `json:"spent"`
+	Remaining   int64  `json:"remaining"`
+	Budget      int64  `json:"budget"`
+	Status      string `json:"status"`
+}
+
+// Stats derives impressions from spent — impressions aren't stored as a
+// separate counter, since 1 impression always equals 1 unit spent.
+func (c Campaign) Stats() Stats {
+	return Stats{
+		Impressions: c.Spent,
+		Spent:       c.Spent,
+		Remaining:   c.Budget - c.Spent,
+		Budget:      c.Budget,
+		Status:      c.Status,
+	}
+}

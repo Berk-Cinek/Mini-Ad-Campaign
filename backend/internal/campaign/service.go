@@ -197,6 +197,58 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 	return err
 }
 
+func (s *Service) Pause(ctx context.Context, id int64) (Campaign, error) {
+	c, err := s.repo.Pause(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Campaign{}, s.classifyUpdateConflict(ctx, id,
+			conflictCheck{func(c Campaign) bool { return c.Status != StatusActive }, "campaign is not active"},
+		)
+	}
+	if err != nil {
+		return Campaign{}, err
+	}
+	return c, nil
+}
+
+func (s *Service) Resume(ctx context.Context, id int64) (Campaign, error) {
+	c, err := s.repo.Resume(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Campaign{}, s.classifyUpdateConflict(ctx, id,
+			conflictCheck{func(c Campaign) bool { return c.Status != StatusPaused }, "campaign is not paused"},
+			conflictCheck{func(c Campaign) bool { return c.Spent >= c.Budget }, "no budget left"},
+			conflictCheck{func(c Campaign) bool { return !c.EndDate.After(time.Now()) }, "end date has passed"},
+		)
+	}
+	if err != nil {
+		return Campaign{}, err
+	}
+	return c, nil
+}
+
+func (s *Service) End(ctx context.Context, id int64) (Campaign, error) {
+	c, err := s.repo.End(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Campaign{}, s.classifyUpdateConflict(ctx, id,
+			conflictCheck{func(c Campaign) bool { return c.Status == StatusCompleted }, "campaign is already completed"},
+		)
+	}
+	if err != nil {
+		return Campaign{}, err
+	}
+	return c, nil
+}
+
+func (s *Service) Stats(ctx context.Context, id int64) (Stats, error) {
+	c, err := s.repo.GetByID(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Stats{}, httpx.NotFound("campaign not found")
+	}
+	if err != nil {
+		return Stats{}, err
+	}
+	return c.Stats(), nil
+}
+
 func (s *Service) RecordImpression(ctx context.Context, id int64) (Campaign, error) {
 	c, err := s.repo.Deduct(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
