@@ -43,6 +43,12 @@
 .campaigns-table th {
   color: var(--text-muted);
   font-weight: 500;
+  cursor: pointer;
+  user-select: none;
+}
+
+.campaigns-table th:hover {
+  color: var(--text);
 }
 
 .campaigns-table tbody tr:last-child td {
@@ -60,17 +66,22 @@
 }
 
 .campaigns-table th:nth-child(1) {
-  width: 35%;
+  width: 25%;
 }
 
+.campaigns-table th:nth-child(2),
 .campaigns-table th:nth-child(3),
 .campaigns-table th:nth-child(4),
-.campaigns-table th:nth-child(5),
+.campaigns-table td:nth-child(2),
 .campaigns-table td:nth-child(3),
-.campaigns-table td:nth-child(4),
-.campaigns-table td:nth-child(5) {
+.campaigns-table td:nth-child(4) {
   text-align: right;
   font-variant-numeric: tabular-nums;
+}
+
+.campaigns-table th:nth-child(5),
+.campaigns-table td:nth-child(5) {
+  text-align: right;
 }
 
 .title-cell {

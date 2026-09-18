@@ -1,4 +1,17 @@
+.form-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  padding: 24px;
+}
+
 .campaign-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.form-fields {
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -22,19 +35,35 @@
   background: var(--bg);
 }
 
-.campaign-form button {
-  align-self: flex-start;
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.btn-primary {
   padding: 8px 16px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  background: none;
-  color: var(--text);
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
   cursor: pointer;
 }
 
-.campaign-form button:disabled {
+.btn-primary:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.btn-secondary {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: none;
+  color: var(--text);
+  font-weight: 500;
+  cursor: pointer;
 }
 
 .form-error {

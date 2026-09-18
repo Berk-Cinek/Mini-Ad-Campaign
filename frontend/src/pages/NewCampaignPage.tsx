@@ -4,13 +4,14 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 
 import { request } from '../api/client';
+import { toDatetimeLocalValue } from '../lib/datetime';
 import type { Campaign, CreateCampaignInput } from '../types';
 import './NewCampaignPage.css';
 
 export default function NewCampaignPage() {
   const [title, setTitle] = useState('');
   const [budget, setBudget] = useState('');
-  const [startDate, setStartDate] = useState('');
+  const [startDate, setStartDate] = useState(() => toDatetimeLocalValue(new Date()));
   const [endDate, setEndDate] = useState('');
 
   const queryClient = useQueryClient();
@@ -44,56 +45,65 @@ export default function NewCampaignPage() {
     <div>
       <h1>New Campaign</h1>
 
-      <form className="campaign-form" onSubmit={handleSubmit}>
-        <label>
-          Title
-          <input
-            type="text"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            required
-            maxLength={200}
-          />
-        </label>
+      <div className="form-card">
+        <form className="campaign-form" onSubmit={handleSubmit}>
+          <div className="form-fields">
+            <label>
+              Title
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                maxLength={200}
+              />
+            </label>
 
-        <label>
-          Budget
-          <input
-            type="number"
-            value={budget}
-            onChange={(e) => setBudget(e.target.value)}
-            required
-            min={1}
-            step={1}
-          />
-        </label>
+            <label>
+              Budget
+              <input
+                type="number"
+                value={budget}
+                onChange={(e) => setBudget(e.target.value)}
+                required
+                min={1}
+                step={1}
+              />
+            </label>
 
-        <label>
-          Start date
-          <input
-            type="datetime-local"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            required
-          />
-        </label>
+            <label>
+              Start date
+              <input
+                type="datetime-local"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                required
+              />
+            </label>
 
-        <label>
-          End date
-          <input
-            type="datetime-local"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            required
-          />
-        </label>
+            <label>
+              End date
+              <input
+                type="datetime-local"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                required
+              />
+            </label>
 
-        {mutation.error && <p className="form-error">{mutation.error.message}</p>}
+            {mutation.error && <p className="form-error">{mutation.error.message}</p>}
+          </div>
 
-        <button type="submit" disabled={mutation.isPending}>
-          {mutation.isPending ? 'Creating…' : 'Create campaign'}
-        </button>
-      </form>
+          <div className="form-actions">
+            <button className="btn-secondary" type="button" onClick={() => navigate('/')}>
+              Cancel
+            </button>
+            <button className="btn-primary" type="submit" disabled={mutation.isPending}>
+              {mutation.isPending ? 'Creating…' : 'Create campaign'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
