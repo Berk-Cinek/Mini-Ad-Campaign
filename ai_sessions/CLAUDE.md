@@ -14,7 +14,7 @@ small but solid is better then big but messy.
 ## Tech Stack
 - Backend: Go 1.27, migrations to be managed with goose, PostgresSQL for DB, API with 'net/http', DB access with pgx + pgxpool
 - Backend tests: go test against the Postgres started by Docker Compose
-- Frontend: React + TypeScript, TanStack querry for server stat, styling done in plain css 
+- Frontend: React + TypeScript (Vite), TanStack querry for server stat, styling done in plain css 
 - Infra: Docker compose:postgres backend, nginx frontend
 
 ## Hard Rules

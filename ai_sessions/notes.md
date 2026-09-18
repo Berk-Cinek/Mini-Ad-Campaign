@@ -59,3 +59,16 @@ Option A — Single atomic conditional UPDATE
   message-queue-based serializer is similarly disproportionate for "hundreds of concurrent requests" on one row.
 
   - Choose Option A for multiple reasones, since go does not hold the actual state the db does the guarentee has to survive the process to be effective, also simplicity is key works wonderfully only double returning on failures to resolve ambiguity.
+
+  Test Generation:
+
+  - Generated a comprehensive testing suit for all endpoints + an integration test suite without mocks: real Postgres, each test inside a transaction that's always rolled back, so the shared dev DB stays clean. Worked, 14 rows before, 14 after, despite dozens of creates across the suite. The one change was impression_test.go's own soft-deleted row, which is expected since that test can't run in a wrapping transaction (it needs genuinely concurrent committing transactions to prove the row locking). The thing I need to remember from this session: at one point it wrote placeholder functions that always returned false —
+
+        func errorsAs(err error, target any) bool { return false }
+
+    and wired one into an assertion checking for false. That test would have passedunconditionally while proving nothing. It also wrote `var _ = strings.TrimSpace` purely to silence an unused-import error instead of removing the import. It caught and cleaned up both itself before anything ran, and the final code is correct, but it's the clearest example yet that "all tests pass" means nothing until I've read the tests. Went back through service_test.go and handlers_test.go looking for
+    assertions that can't fail.
+
+    Frontend Scafolding:
+
+    - tried to use vite_api_base_url instead of a proxy as defined int he CLAUDE.md file, since it was ngix my guess is it thought the proxy was for prod only and defaulted to base url approach
