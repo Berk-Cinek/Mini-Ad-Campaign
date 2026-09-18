@@ -60,6 +60,7 @@ func run() error {
 	mux.HandleFunc("GET /campaigns/{id}", h.Get)
 	mux.HandleFunc("PATCH /campaigns/{id}", h.Update)
 	mux.HandleFunc("DELETE /campaigns/{id}", h.Delete)
+	mux.HandleFunc("POST /impression/{id}", h.Impression)
 
 	server := &http.Server{
 		Addr:    ":" + port,

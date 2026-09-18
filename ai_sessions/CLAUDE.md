@@ -20,10 +20,9 @@ small but solid is better then big but messy.
 ## Hard Rules
 These must never be broken. If a task seems to require breaking one, stop and ask.
 - The budget must never go negative. This requirement is fixed. *
-- The impression endpoint will receive hundreds of concurrent requests. When the last unit of budget is used, the campaign pauses.
-- How to guarantee this under concurrency is not decided yet. This is the mechanism, not the requirement. *
-When we reach the impression endpoint, propose options with trade-offs, including whether each option stays correct with multiple backend instances. Wait for my choice before implementing. *
-- The same applies to other writes that depend on the current row: resuming a campaign and decreasing its budget.
+- The impression endpoint receives hundreds of concurrent requests. When the last unit of budget is used, the campaign pauses. Mechanism: a single atomic conditional UPDATE (deducts and pauses in one statement, gated by a WHERE clause checking status/dates/remaining budget) — race-safe across multiple backend instances because Postgres evaluates the WHERE clause against the current row under lock as part of that one statement, not the application.
+- Decreasing a campaign's budget (via PATCH) uses the same mechanism: a WHERE-clause guard (`spent <= new budget`) on the UPDATE, for the same reason.
+- Resuming a campaign still needs this same treatment (propose options with trade-offs, including multi-instance correctness, wait for my choice) when we get there. *
 - Money is an integer: BIGINT in the database, int64 in Go, integer in JSON. Never float.
 - Database constraints are the safety net: budget > 0, spent >= 0, spent <= budget, end_date > start_date, status limited to the three values.
 - soft delete only. Deleting sets deleted_at. Every query filters deleted_at IS NULL. No DELETE statements.
@@ -82,7 +81,7 @@ Validation (400 on failure, checked before any database write):
 - start_date, end_date: required, RFC 3339 format, end_date after start_date, end_date in the future
 - clients cannot set status, spent, id or timestamps; unknown JSON fields return 400
 - PATCH applies the same rules to the fields it receives
-- A database constraint violation is unexpected: return 500 and log it. Exception: if the chosen concurrency mechanism deliberately relies on a constraint to reject a write, that violation returns 409. Decide this together with the mechanism.
+- A database constraint violation is unexpected: return 500 and log it. The chosen concurrency mechanism (WHERE-clause guards on conditional UPDATEs) never relies on catching a constraint violation, so constraints stay a pure safety net — any violation is a bug, not an expected 409 path.
 
 ## Open questions
 

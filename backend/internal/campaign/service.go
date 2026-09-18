@@ -149,7 +149,11 @@ func (s *Service) Update(ctx context.Context, id int64, in UpdateInput) (Campaig
 
 	updated, err := s.repo.Update(ctx, id, newTitle, newBudget, newStart, newEnd)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return Campaign{}, s.classifyUpdateConflict(ctx, id, datesTouched, newBudget)
+		return Campaign{}, s.classifyUpdateConflict(ctx, id,
+			conflictCheck{func(c Campaign) bool { return c.Status == StatusCompleted }, "completed campaigns cannot be edited"},
+			conflictCheck{func(c Campaign) bool { return datesTouched && c.Status != StatusPaused }, "dates can only be changed while the campaign is paused"},
+			conflictCheck{func(c Campaign) bool { return newBudget != nil && *newBudget < c.Spent }, "budget cannot be lower than spent"},
+		)
 	}
 	if err != nil {
 		return Campaign{}, err
@@ -157,12 +161,19 @@ func (s *Service) Update(ctx context.Context, id int64, in UpdateInput) (Campaig
 	return updated, nil
 }
 
-// classifyUpdateConflict re-reads the row to explain why Update's conditional
-// UPDATE matched zero rows: missing/deleted (404), or still present but
-// blocked by one of the same conditions the WHERE clause enforces (409, with
-// the precise reason). This only differs from the pre-checks in Update in
-// the rare case where the row changed concurrently between the two.
-func (s *Service) classifyUpdateConflict(ctx context.Context, id int64, datesTouched bool, newBudget *int64) error {
+type conflictCheck struct {
+	failed  func(Campaign) bool
+	message string
+}
+
+// classifyUpdateConflict explains why a conditional UPDATE (Update's PATCH,
+// or the impression endpoint's Deduct) matched zero rows: re-reads the row
+// and returns 404 if it's missing/deleted, otherwise runs the caller-supplied
+// checks in order and returns the first one whose condition still holds as a
+// 409 — falling back to a generic conflict message if none match (only
+// reachable if the row changed again between the original write attempt and
+// this re-read).
+func (s *Service) classifyUpdateConflict(ctx context.Context, id int64, checks ...conflictCheck) error {
 	current, err := s.repo.GetByID(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return httpx.NotFound("campaign not found")
@@ -170,14 +181,10 @@ func (s *Service) classifyUpdateConflict(ctx context.Context, id int64, datesTou
 	if err != nil {
 		return err
 	}
-	if current.Status == StatusCompleted {
-		return httpx.Conflict("completed campaigns cannot be edited")
-	}
-	if datesTouched && current.Status != StatusPaused {
-		return httpx.Conflict("dates can only be changed while the campaign is paused")
-	}
-	if newBudget != nil && *newBudget < current.Spent {
-		return httpx.Conflict("budget cannot be lower than spent")
+	for _, check := range checks {
+		if check.failed(current) {
+			return httpx.Conflict(check.message)
+		}
 	}
 	return httpx.Conflict("campaign was modified concurrently, please retry")
 }
@@ -188,4 +195,21 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 		return httpx.NotFound("campaign not found")
 	}
 	return err
+}
+
+func (s *Service) RecordImpression(ctx context.Context, id int64) (Campaign, error) {
+	c, err := s.repo.Deduct(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		now := time.Now()
+		return Campaign{}, s.classifyUpdateConflict(ctx, id,
+			conflictCheck{func(c Campaign) bool { return c.Status != StatusActive }, "campaign is not active"},
+			conflictCheck{func(c Campaign) bool { return now.Before(c.StartDate) }, "campaign has not started yet"},
+			conflictCheck{func(c Campaign) bool { return !now.Before(c.EndDate) }, "campaign has ended"},
+			conflictCheck{func(c Campaign) bool { return c.Spent >= c.Budget }, "campaign budget is exhausted"},
+		)
+	}
+	if err != nil {
+		return Campaign{}, err
+	}
+	return c, nil
 }

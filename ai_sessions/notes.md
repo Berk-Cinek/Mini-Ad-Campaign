@@ -10,4 +10,52 @@ campaigns: create / list / get;
 
 - the 200-character title limit used len(), which counts bytes, not characters. switched to utf8.RuneCountInString.
 
-  
+The awnser to the race condtion solution;
+Option A — Single atomic conditional UPDATE
+
+  One SQL statement does the check-and-deduct together:
+  UPDATE campaigns
+  SET
+      spent  = spent + 1,
+      status = CASE WHEN spent + 1 >= budget THEN 'paused' ELSE status END,
+      updated_at = now()
+  WHERE id = $1
+      AND deleted_at IS NULL
+      AND status = 'active'
+      AND start_date <= now()
+      AND end_date > now()
+      AND spent < budget
+  RETURNING spent, budget, status, ...
+  Pros: Multi-instance correct (Postgres locks the row and evaluates the whole WHERE clause against current committed state as one statement — instances are
+  serialized by Postgres, not app coordination). Fewest round trips on the success path. Shortest lock hold time per request → best throughput under
+  contention. Same idiom already used for PATCH's budget-decrease guard.
+  Cons: On failure, the reason is opaque (missing/deleted vs. not active vs. bad dates vs. exhausted) — needs one follow-up SELECT to disambiguate, paid
+  only on failed requests.
+
+  Option B — SELECT ... FOR UPDATE inside an explicit transaction
+
+  Lock the row, check conditions in Go, then update, all in one transaction.
+  Pros: Multi-instance correct (FOR UPDATE blocks a second transaction's lock attempt on the same row until the first commits). Failure reason is known
+  immediately in Go — no extra disambiguating read.
+  Cons: Two round trips on every call, not just failures. Row lock held across both round trips plus any Go-side computation in between — roughly double the
+  lock-hold time of Option A under contention. More code (explicit transaction lifecycle, held connection).
+
+  Option C — Optimistic concurrency (compare-and-swap on spent)
+
+  Read spent, compute new value, UPDATE ... WHERE spent=$old, retry on conflict. No new column needed — reuses spent itself as the CAS token.
+  Pros: Multi-instance correct (each CAS UPDATE is atomic regardless of instance). No schema change.
+  Cons: Under real contention on one row, many attempts lose the race and retry — multiplies round trips well beyond A or B. This pattern suits
+  low-contention fields; a hot campaign row under load is the opposite case. Needs a max-retry/backoff policy to avoid spinning.
+
+  Option D — In-process lock (sync.Mutex per campaign id)
+
+  Pros: Simple, fast within a single process.
+  Cons: Not multi-instance correct — each backend instance has its own independent lock table; two instances can each pass their own local check and both
+  write, overspending. Works fine in single-instance testing and silently breaks the moment there's more than one instance. Listed here specifically to rule
+  it out.
+
+  Not listed as real options: a distributed lock (Postgres advisory lock or Redis) would work but only reconstructs, with more moving parts, the same
+  row-level serialization A/B/C already get from Postgres for free — and a Redis-based version is a new dependency requiring separate approval anyway. A
+  message-queue-based serializer is similarly disproportionate for "hundreds of concurrent requests" on one row.
+
+  - Choose Option A for multiple reasones, since go does not hold the actual state the db does the guarentee has to survive the process to be effective, also simplicity is key works wonderfully only double returning on failures to resolve ambiguity.

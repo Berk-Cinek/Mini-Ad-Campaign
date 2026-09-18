@@ -93,3 +93,18 @@ func (h *Handler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+func (h *Handler) Impression(w http.ResponseWriter, r *http.Request) {
+	id, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		httpx.WriteError(w, httpx.Invalid("invalid campaign id"))
+		return
+	}
+
+	c, err := h.svc.RecordImpression(r.Context(), id)
+	if err != nil {
+		httpx.WriteError(w, err)
+		return
+	}
+	httpx.WriteJSON(w, http.StatusOK, c)
+}

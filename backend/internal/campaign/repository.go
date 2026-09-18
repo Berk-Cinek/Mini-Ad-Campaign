@@ -138,3 +138,36 @@ func (r *Repository) SoftDelete(ctx context.Context, id int64) error {
 	var returnedID int64
 	return r.pool.QueryRow(ctx, query, id).Scan(&returnedID)
 }
+
+// Deduct atomically records one impression: increments spent by 1 and, if
+// this deduction exhausts the budget, flips status to 'paused' in the same
+// statement — no separate transition step, so no window where a concurrent
+// call could sneak in between "deduct" and "pause". The WHERE clause is the
+// sole correctness mechanism, evaluated by Postgres against the current row
+// under lock as part of this one statement, so it's race-safe across
+// multiple backend instances without any extra locking on our side.
+func (r *Repository) Deduct(ctx context.Context, id int64) (Campaign, error) {
+	query := `
+		UPDATE campaigns
+		SET
+			spent  = spent + 1,
+			status = CASE WHEN spent + 1 >= budget THEN 'paused' ELSE status END,
+			updated_at = now()
+		WHERE id = $1
+			AND deleted_at IS NULL
+			AND status = 'active'
+			AND start_date <= now()
+			AND end_date > now()
+			AND spent < budget
+		RETURNING ` + campaignColumns
+
+	var out Campaign
+	err := r.pool.QueryRow(ctx, query, id).Scan(
+		&out.ID, &out.Title, &out.Budget, &out.Spent, &out.Status,
+		&out.StartDate, &out.EndDate, &out.CreatedAt, &out.UpdatedAt,
+	)
+	if err != nil {
+		return Campaign{}, err
+	}
+	return out, nil
+}
