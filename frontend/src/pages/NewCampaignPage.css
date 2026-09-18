@@ -25,10 +25,10 @@
 .campaign-form button {
   align-self: flex-start;
   padding: 8px 16px;
-  border: none;
+  border: 1px solid var(--border);
   border-radius: 4px;
-  background: var(--accent);
-  color: #fff;
+  background: none;
+  color: var(--text);
   cursor: pointer;
 }
 

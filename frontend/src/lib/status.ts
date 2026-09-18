@@ -22,3 +22,12 @@ export function displayStatus(campaign: Campaign): DisplayStatus {
 
   return campaign.status;
 }
+
+// Which tab a campaign belongs in. Differs from displayStatus() only for
+// "Ended": that's grouped under Completed (it's functionally done, just
+// waiting on the once-a-minute background job), but the Status cell still
+// shows the more specific "Ended" label via displayStatus() — this only
+// changes which tab a row lands in, not what it displays.
+export function tabBucket(campaign: Campaign): CampaignStatus {
+  return displayStatus(campaign) === 'Ended' ? 'completed' : campaign.status;
+}

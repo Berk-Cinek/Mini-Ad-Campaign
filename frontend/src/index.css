@@ -8,6 +8,8 @@
   --text: #1f2328;
   --text-muted: #6b7280;
   --bg: #ffffff;
+  --surface: #f9fafb;
+  --surface-hover: #ffffff;
   --border: #e5e7eb;
   --accent: #2563eb;
 
@@ -21,6 +23,8 @@
     --text: #e5e7eb;
     --text-muted: #9ca3af;
     --bg: #16171d;
+    --surface: #1c1e26;
+    --surface-hover: #262a35;
     --border: #2e303a;
     --accent: #60a5fa;
   }

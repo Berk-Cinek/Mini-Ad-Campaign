@@ -20,6 +20,13 @@
   border-bottom-color: var(--accent);
 }
 
+.table-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  overflow: hidden;
+}
+
 .campaigns-table {
   width: 100%;
   table-layout: fixed;
@@ -38,15 +45,32 @@
   font-weight: 500;
 }
 
-.campaigns-table th:nth-child(1) {
-  width: 40%;
+.campaigns-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
-.campaigns-table th:nth-child(2),
+.campaigns-table tbody tr:not(.empty-row) {
+  cursor: pointer;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.campaigns-table tbody tr:not(.empty-row):hover {
+  background: var(--surface-hover);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.campaigns-table th:nth-child(1) {
+  width: 35%;
+}
+
 .campaigns-table th:nth-child(3),
 .campaigns-table th:nth-child(4),
-.campaigns-table th:nth-child(5) {
-  width: 15%;
+.campaigns-table th:nth-child(5),
+.campaigns-table td:nth-child(3),
+.campaigns-table td:nth-child(4),
+.campaigns-table td:nth-child(5) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .title-cell {
@@ -55,3 +79,4 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
