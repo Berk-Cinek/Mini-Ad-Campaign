@@ -86,7 +86,7 @@ Coverage was kept small and directly readable rather than broad. An earlier, AI-
 
 ## Known limitations
 
-Each backend instance runs its own database migrations on startup (`goose.Up` inside `main.go`'s `run()`) before it starts serving; with `docker compose up -d --scale backend=2`, or any multi-instance deployment, every instance attempts the same migration run concurrently on startup, and correctness there, goose takes an advisory lock for this, but I haven't verified the behaviour under simultaneous startup
+Each backend instance runs its own database migrations on startup (`goose.Up` inside `main.go`'s `run()`) before it starts serving. With `docker compose up -d --scale backend=2`, or any multi-instance deployment, every instance attempts the same migration run at the same time. goose takes an advisory lock for exactly this case, so it should be safe, but I haven't verified the behaviour under simultaneous startup.
 
 `budget` is decoded as `json.Number`, which accepts both a bare JSON number (`100`) and a quoted numeric string (`"100"`). This is intentional laxness rather than a validation gap.
 
