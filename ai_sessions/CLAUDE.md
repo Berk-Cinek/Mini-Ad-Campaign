@@ -51,6 +51,7 @@ campaign:
 - budget decreases are allowed only if the new budget is still >= spent.
 - completed campaigns cannot be edited in any way. completion is terminal and cannot be reversed.
 - increasing the budget never resumes a paused campaign automatically.
+- start_date/end_date can only be changed via PATCH while the campaign is paused; sending either while active or completed returns 409. (Resolved open question.)
 - ending a campaign early is allowed. There is no permission check because there is no auth.
 - a background job runs every minute and marks campaigns past end_date as completed. Correctness never depends on this job, because the impression logic checks dates itself.
 - soft-deleted campaigns return 404 on every endpoint, including a second DELETE. No restore feature.
@@ -87,7 +88,7 @@ Validation (400 on failure, checked before any database write):
 
 Do not decide these on your own. Ask me when they become relevant.
 
-- dates can be edited on an active campaign but with what limits?
+(none currently)
 
 ## Code style
 - TypeScript: no 'any'. Types in 'types.ts' mirror the JSON responses exactly.
