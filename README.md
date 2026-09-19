@@ -67,7 +67,7 @@ Status code distribution:
   [409] 1900 responses
 
 
-hey status code distribution: 100=100 (expected 100), 409=1900 (expected 1900), 500=0 (expected 0)
+hey status code distribution: 200=100 (expected 100), 409=1900 (expected 1900), 500=0 (expected 0)
 
 Fetching GET /stats/3 ...
 
