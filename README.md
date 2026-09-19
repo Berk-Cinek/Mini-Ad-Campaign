@@ -22,38 +22,6 @@ docker compose up
 
 Open http://localhost:3000. nginx serves the frontend there and proxies `/api/*` through to the backend.
 
-### Local development
-
-Start only Postgres via Compose:
-
-```
-docker compose up -d postgres
-```
-
-Backend (from `backend/`), pointed at that Postgres instance:
-
-PowerShell:
-```
-$env:DATABASE_URL = "postgresql://campaign:campaign@localhost:5432/campaign?sslmode=disable"
-go run ./cmd/server
-```
-
-bash:
-```
-export DATABASE_URL="postgresql://campaign:campaign@localhost:5432/campaign?sslmode=disable"
-go run ./cmd/server
-```
-
-The server listens on `:8080` by default (`PORT`) and runs its own migrations against `DATABASE_URL` on startup.
-
-Frontend (from `frontend/`), the same in either shell:
-
-```
-npm install
-npm run dev
-```
-
-Open http://localhost:5173. Vite proxies `/api/*` to `http://localhost:8080` (see `vite.config.ts`), so the backend above needs to be running on port 8080 for this to work.
 
 ## API
 
@@ -87,7 +55,27 @@ This is proven at three levels. `backend/internal/campaign/impression_test.go` (
 Output of the scaled (`--scale backend=2`) load test run:
 
 ```
-PASTE LOAD TEST OUTPUT HERE
+Details (average, fastest, slowest):
+  DNS+dialup:   0.0011 secs, 0.0000 secs, 0.0165 secs
+  DNS-lookup:   0.0009 secs, 0.0000 secs, 0.0148 secs
+  req write:    0.0001 secs, 0.0000 secs, 0.0066 secs
+  resp wait:    0.0165 secs, 0.0007 secs, 0.1587 secs
+  resp read:    0.0001 secs, 0.0000 secs, 0.0020 secs
+
+Status code distribution:
+  [200] 100 responses
+  [409] 1900 responses
+
+
+hey status code distribution: 100=100 (expected 100), 409=1900 (expected 1900), 500=0 (expected 0)
+
+Fetching GET /stats/3 ...
+
+spent:     actual=100     expected=100      OK
+remaining: actual=0  expected=0        OK
+status:    actual=paused  expected=paused   OK
+
+PASS
 ```
 
 ## Testing
