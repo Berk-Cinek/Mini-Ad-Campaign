@@ -34,6 +34,22 @@ body {
   margin: 0;
 }
 
+.btn-primary {
+  align-self: flex-start;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 #root {
   max-width: 960px;
   margin: 0 auto;

@@ -174,7 +174,7 @@ export default function CampaignDetailPage() {
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
                   required
-                  disabled={isCompleted}
+                  disabled={campaign.status !== 'paused'}
                 />
               </label>
 
@@ -185,9 +185,10 @@ export default function CampaignDetailPage() {
                   value={endDate}
                   onChange={(e) => setEndDate(e.target.value)}
                   required
-                  disabled={isCompleted}
+                  disabled={campaign.status !== 'paused'}
                 />
               </label>
+              <p className="field-hint">Dates can only be changed while the campaign is paused.</p>
 
               {edit.error && <p className="action-error">{edit.error.message}</p>}
 
@@ -285,7 +286,7 @@ export default function CampaignDetailPage() {
           >
             {impression.isPending ? 'Sending…' : 'Send test impression'}
           </button>
-          {impression.error && <p>{impression.error.message}</p>}
+          {impression.error && <p className="action-error">{impression.error.message}</p>}
         </div>
       </div>
     </div>

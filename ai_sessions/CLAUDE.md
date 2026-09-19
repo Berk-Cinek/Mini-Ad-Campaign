@@ -56,6 +56,7 @@ campaign:
 - a background job runs every minute and marks campaigns past end_date as completed. Correctness never depends on this job, because the impression logic checks dates itself.
 - soft-deleted campaigns return 404 on every endpoint, including a second DELETE. No restore feature.
 - On PATCH id may not be thouched aswell as status, status is changed through dedicated endpoints.
+- dates only editable while paused.
 
 ## API
 
