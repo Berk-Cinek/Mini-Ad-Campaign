@@ -206,6 +206,25 @@ func (r *Repository) End(ctx context.Context, id int64) (Campaign, error) {
 	return out, nil
 }
 
+// CompletePastEndDate marks every active/paused campaign whose end_date has
+// passed as completed. This is a catch-up sweep, not a correctness
+// mechanism — Deduct and Resume already check dates themselves — so a
+// missed or delayed sweep can't let an impression through past end_date.
+func (r *Repository) CompletePastEndDate(ctx context.Context) (int64, error) {
+	query := `
+		UPDATE campaigns
+		SET status = 'completed', updated_at = now()
+		WHERE deleted_at IS NULL
+			AND status IN ('active', 'paused')
+			AND end_date <= now()`
+
+	tag, err := r.pool.Exec(ctx, query)
+	if err != nil {
+		return 0, err
+	}
+	return tag.RowsAffected(), nil
+}
+
 // Deduct atomically records one impression: increments spent by 1 and, if
 // this deduction exhausts the budget, flips status to 'paused' in the same
 // statement — no separate transition step, so no window where a concurrent

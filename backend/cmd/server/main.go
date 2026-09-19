@@ -37,6 +37,15 @@ func run() error {
 		port = "8080"
 	}
 
+	sweepInterval := time.Minute
+	if raw := os.Getenv("SWEEP_INTERVAL"); raw != "" {
+		parsed, err := time.ParseDuration(raw)
+		if err != nil {
+			return fmt.Errorf("parsing SWEEP_INTERVAL: %w", err)
+		}
+		sweepInterval = parsed
+	}
+
 	if err := runMigrations(databaseURL); err != nil {
 		return fmt.Errorf("running migrations: %w", err)
 	}
@@ -53,6 +62,9 @@ func run() error {
 	repo := campaign.NewRepository(pool)
 	svc := campaign.NewService(repo)
 	h := campaign.NewHandler(svc)
+
+	sweeper := campaign.NewSweeper(repo)
+	go sweeper.Run(ctx, sweepInterval)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /campaigns", h.Create)
