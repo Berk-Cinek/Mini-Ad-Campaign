@@ -20,7 +20,7 @@ services:
       context: ./backend
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-campaign}:${POSTGRES_PASSWORD:-campaign}@postgres:5432/${POSTGRES_DB:-campaign}?sslmode=disable
-      SWEEP_INTERVAL: ${SWEEP_INTERVAL:-1m}s
+      SWEEP_INTERVAL: ${SWEEP_INTERVAL:-1m}
     depends_on:
       postgres:
         condition: service_healthy

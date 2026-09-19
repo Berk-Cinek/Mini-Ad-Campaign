@@ -88,7 +88,6 @@ Validation (400 on failure, checked before any database write):
 ## Open questions
 
 Do not decide these on your own. Ask me when they become relevant.
-
 (none currently)
 
 ## Code style
