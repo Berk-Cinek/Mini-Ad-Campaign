@@ -6,22 +6,39 @@ Mini-Ad-Campaign is a minimal platform for a retailer to manage ad campaigns and
 
 ## Stack
 
-Backend: Go 1.27, HTTP via the standard `net/http`, Postgres via `pgx`/`pgxpool`, schema migrations via goose (embedded into the binary and run on startup).
-
-Frontend: React + TypeScript on Vite, server state via TanStack Query, plain CSS, client-side routing via `react-router`.
-
-Infra: Docker Compose runs three services — Postgres, the Go backend (no published port; reachable only inside the compose network), and nginx, which serves the built frontend and proxies `/api/` to the backend.
+- Backend
+  - Go 1.27
+  - HTTP via the standard `net/http`
+  - Postgres access via `pgx`/`pgxpool`
+- Frontend
+  - React + TypeScript on Vite
+  - Server state via TanStack Query
+  - Plain CSS
+  - Client-side routing via `react-router`
+- Database
+  - Postgres
+  - Schema migrations via goose, embedded into the binary and run on startup
+- Infra
+  - Docker Compose runs three services: Postgres, the Go backend, and nginx
+  - The backend has no published port; it is reachable only inside the compose network
+  - nginx serves the built frontend and proxies `/api/` to the backend
 
 ## Running it
 
-With Docker Compose, from a clean clone:
+1. Clone the repo:
 
-```
-docker compose up
-```
+   ```
+   git clone https://github.com/Berk-Cinek/Mini-Ad-Campaign
+   cd Mini-Ad-Campaign
+   ```
 
-Open http://localhost:3000. nginx serves the frontend there and proxies `/api/*` through to the backend.
+2. Start everything:
 
+   ```
+   docker compose up
+   ```
+
+3. Open http://localhost:3000. nginx serves the frontend there and proxies `/api/*` through to the backend.
 
 ## API
 
@@ -42,7 +59,9 @@ Every endpoint above also returns 400 if `{id}` isn't a valid integer, and 500 w
 
 ## Race condition
 
-The impression endpoint accepts hundreds of concurrent requests against the same campaign, and the budget must never go negative. This is enforced with a single atomic conditional UPDATE (`Repository.Deduct` in `backend/internal/campaign/repository.go`): one SQL statement increments `spent` by 1 and, in the same `SET`, via `CASE WHEN spent + 1 >= budget THEN 'paused' ELSE status END`, flips the campaign to paused if that increment exhausts the budget. Every precondition — active, started, not ended, budget remaining — sits in the `WHERE` clause rather than in Go. Postgres evaluates that whole `WHERE` clause against the current committed row under lock as part of the one statement, so there is no window between checking and writing, regardless of how many separate backend processes are issuing the statement at once.
+The impression endpoint accepts hundreds of concurrent requests against the same campaign, and the budget must never go negative. This is enforced by a single atomic conditional UPDATE whose `WHERE` clause holds every precondition, so Postgres's row lock makes check-and-write one indivisible step, even across multiple backend processes.
+
+The detail: the statement is `Repository.Deduct` in `backend/internal/campaign/repository.go`. One SQL statement increments `spent` by 1 and, in the same `SET`, via `CASE WHEN spent + 1 >= budget THEN 'paused' ELSE status END`, flips the campaign to paused if that increment exhausts the budget. Every precondition — active, started, not ended, budget remaining — sits in the `WHERE` clause rather than in Go. Postgres evaluates that whole `WHERE` clause against the current committed row under lock as part of the one statement, so there is no window between checking and writing, regardless of how many separate backend processes are issuing the statement at once.
 
 If zero rows match, nothing is written, and the service issues one follow-up `SELECT` purely to work out which precondition failed and choose a 409 message — that read never decides whether the write happens, so it cannot reintroduce a race.
 
@@ -78,17 +97,26 @@ status:    actual=paused  expected=paused   OK
 PASS
 ```
 
+### Running the tests
+
+    cd backend
+    $env:DATABASE_URL = "postgresql://campaign:campaign@localhost:5432/campaign?sslmode=disable"
+    go test ./... -count=1
+
 ## Testing
 
-The backend tests run against the real Postgres started by Docker Compose rather than mocks; DATABASE_URL being unset skips them, so a bare go test ./... without Postgres running doesn't fail. impression_test.go fires 300 concurrent impressions at one campaign in-process and asserts the budget invariant. integration_test.go drives one campaign through its full lifecycle over real HTTP — create, exhaust the budget, auto-pause, blocked resume, budget raise, resume, end, stats, delete. service_test.go covers the conflict paths that need seeded state: resume with no budget left or a passed end date, a budget decrease below spent, and impressions on deleted, paused or not-yet-started campaigns. sweeper_test.go covers the background completion job. loadtest/budget-loadtest.ps1 extends the budget assertion over HTTP and across two backend instances.
+The backend tests run against the real Postgres started by Docker Compose rather than mocks. If `DATABASE_URL` is unset they are skipped, so a bare `go test ./...` without Postgres running doesn't fail. See "Running the tests" above for the command.
+
+- `impression_test.go` fires 300 concurrent impressions at one campaign in-process and asserts the budget invariant.
+- `integration_test.go` drives one campaign through its full lifecycle over real HTTP: create, exhaust the budget, auto-pause, blocked resume, budget raise, resume, end, stats, delete.
+- `service_test.go` covers the conflict paths that need seeded state: resume with no budget left or a passed end date, a budget decrease below spent, and impressions on deleted, paused or not-yet-started campaigns.
+- `sweeper_test.go` covers the background completion job.
+- `loadtest/budget-loadtest.ps1` extends the budget assertion over HTTP and across two backend instances.
 
 Tests using HTTP run inside a transaction that is always rolled back, so they leave no rows behind; the campaign row count is unchanged after a full run.
 
 ## Known limitations
 
-Each backend instance runs its own database migrations on startup (`goose.Up` inside `main.go`'s `run()`) before it starts serving. With `docker compose up -d --scale backend=2`, or any multi-instance deployment, every instance attempts the same migration run at the same time. goose takes an advisory lock for exactly this case, so it should be safe, but I haven't verified the behaviour under simultaneous startup.
-
-`budget` is decoded as `json.Number`, which accepts both a bare JSON number (`100`) and a quoted numeric string (`"100"`). This is intentional laxness rather than a validation gap.
-
-The background sweep that marks past-end-date campaigns completed is a cosmetic catch-up job, not a correctness mechanism — impressions and resumes check dates themselves regardless of stored status. It runs on `SWEEP_INTERVAL` (default `1m`, in both local development and under `docker compose up`), so the stored `status` can lag up to a minute behind a campaign's actual end date. The frontend's `displayStatus()` (`frontend/src/lib/status.ts`) computes an `Ended` label from the dates directly, so the UI never shows a stale "Active"/"Paused" badge either way, but anything reading the API's raw `status` field can see it lag behind the true end date until the next sweep.
-
+- **Migrations run on every instance at startup, and simultaneous startup is unverified.** Each backend instance runs `goose.Up` inside `main.go`'s `run()` before it starts serving, so with `docker compose up -d --scale backend=2`, or any multi-instance deployment, every instance attempts the same migration run at the same time. goose takes an advisory lock for exactly this case, so it should be safe, but I haven't verified the behaviour under simultaneous startup.
+- **`budget` accepts a bare number or a quoted numeric string.** It is decoded as `json.Number`, so both `100` and `"100"` are valid. This is intentional laxness rather than a validation gap.
+- **The stored `status` can lag up to a minute behind a campaign's end date.** The background sweep that marks past-end-date campaigns completed is a cosmetic catch-up job, not a correctness mechanism — impressions and resumes check dates themselves regardless of stored status. It runs on `SWEEP_INTERVAL` (default `1m`, in both local development and under `docker compose up`). The frontend's `displayStatus()` (`frontend/src/lib/status.ts`) computes an `Ended` label from the dates directly, so the UI never shows a stale "Active"/"Paused" badge either way, but anything reading the API's raw `status` field can see it lag behind the true end date until the next sweep.
