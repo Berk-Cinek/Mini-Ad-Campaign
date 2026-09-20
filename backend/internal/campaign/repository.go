@@ -4,14 +4,24 @@ import (
 	"context"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
-type Repository struct {
-	pool *pgxpool.Pool
+// dbtx is the subset of *pgxpool.Pool and pgx.Tx that Repository needs,
+// letting tests back a Repository with a rolled-back transaction instead of
+// the real pool.
+type dbtx interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
 }
 
-func NewRepository(pool *pgxpool.Pool) *Repository {
+type Repository struct {
+	pool dbtx
+}
+
+func NewRepository(pool dbtx) *Repository {
 	return &Repository{pool: pool}
 }
 
