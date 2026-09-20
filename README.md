@@ -80,9 +80,9 @@ PASS
 
 ## Testing
 
-The backend has two Go test files, both run against the real Postgres started by Docker Compose rather than a mock (`DATABASE_URL` unset skips them, so a bare `go test ./...` without Postgres running doesn't fail). `impression_test.go` fires 300 concurrent impressions at a single campaign and asserts the budget invariant end-to-end, in-process. `sweeper_test.go` asserts the background job flips a past-end-date campaign to completed and leaves a current one untouched. `loadtest/budget-loadtest.ps1` extends the same assertion over real HTTP and across multiple backend instances, as described above.
+The backend tests run against the real Postgres started by Docker Compose rather than mocks; DATABASE_URL being unset skips them, so a bare go test ./... without Postgres running doesn't fail. impression_test.go fires 300 concurrent impressions at one campaign in-process and asserts the budget invariant. integration_test.go drives one campaign through its full lifecycle over real HTTP — create, exhaust the budget, auto-pause, blocked resume, budget raise, resume, end, stats, delete. service_test.go covers the conflict paths that need seeded state: resume with no budget left or a passed end date, a budget decrease below spent, and impressions on deleted, paused or not-yet-started campaigns. sweeper_test.go covers the background completion job. loadtest/budget-loadtest.ps1 extends the budget assertion over HTTP and across two backend instances.
 
-Coverage was kept small and directly readable rather than broad. An earlier, AI-generated backend test suite (roughly 1,100 lines) was reverted after a read turned up an assertion that could never fail — see `ai_sessions/AI_WORKFLOW.md`. The priority since has been proving the one invariant that's a hard rule — the budget never goes negative, under real concurrency, over real HTTP, across multiple instances — over maximizing line coverage. The frontend has no automated tests.
+Tests using HTTP run inside a transaction that is always rolled back, so they leave no rows behind; the campaign row count is unchanged after a full run.
 
 ## Known limitations
 
